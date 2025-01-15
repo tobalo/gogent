@@ -1,1 +1,0 @@
-{"Created":"2025-01-15T14:36:51.059554Z","Name":"AGENT_CONSUMER","durable_name":"AGENT_CONSUMER","name":"AGENT_CONSUMER","deliver_policy":"all","ack_policy":"explicit","ack_wait":30000000000,"max_deliver":-1,"filter_subject":"AGENT.TECHNICAL.SUPPORT","replay_policy":"instant","max_waiting":512,"max_ack_pending":65536,"num_replicas":0}
