@@ -12,23 +12,25 @@ The motivation to do this was:
 ## Architecture
 
 ```mermaid
-flowchart LR
-    S[IoT Log Producer 1] -->|Publish| Z
-    T[IoT Log Producer 1] -->|Publish| Z
-    Y[IoT Log Producer 1] -->|Publish| Z
+flowchart
+subgraph Manufucturing Site Network
+    S[IoT Error Log Producer 1] -->|Publish| Z
+    T[IoT Error Log Producer 1] -->|Publish| Z
+    Y[IoT Erro Log Producer 1] -->|Publish| Z
     subgraph Gogent
         subgraph embedded NATS
             Z[[agent.technical.support]]
 
         end
         Z -->|Subscribe| A[Agent Sig]
-        E[(SQLite DB)]
-        A --> |Store Log & Analysis| E
+        E[(Error Log DB)]
+        A --> |Structured Log| E
     end
     subgraph Inference API
-        A -->|Request| L[LLM/Gemini API]
+        A -->|Request| L[LLM && VLM]
         L -->|Response| A
     end
+end
 ```
 
 ## Core Components
