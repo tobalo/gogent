@@ -7,6 +7,8 @@ The motivation to do this was:
 2. How this could be lightweight and usable in the Reindustrialization of America.
 3. Focus on the use-case of having error log data collection to simplify analysis, collection, and aggregation of all system errors on a manufacturing site into a DB which can then be used for analyzing patterns of errors, metadata analysis to help Operators diagnose and resolve production issues faster, ultimately increasing reindustrializtion and manufacturing productivity.
 
+***TODO: Use ollama and phi4 with software defined networking instead of Gemini for full edgeAI and no internet requirements***
+
 ## Architecture
 
 ```mermaid
