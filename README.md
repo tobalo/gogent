@@ -11,7 +11,9 @@ The motivation to do this was:
 
 ```mermaid
 flowchart LR
-    T[Log Producer] -->|Publish| Z[[Raw Error Log]]
+    S[IoT Log Producer 1] -->|Publish| Z
+    T[IoT Log Producer 1] -->|Publish| Z
+    Y[IoT Log Producer 1] -->|Publish| Z
     subgraph Gogent
         subgraph embedded NATS
             Z[[agent.technical.support]]
