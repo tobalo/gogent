@@ -1,0 +1,27 @@
+# Version control
+.git
+.gitignore
+
+# Build artifacts
+build/
+dist/
+
+# Development files
+*.md
+*.sh
+Dockerfile
+.dockerignore
+
+# Environment files (optional, depending on how you want to handle them)
+# .env*
+
+# IDE files
+.idea/
+.vscode/
+
+# Temporary files
+*.tmp
+*.log
+
+# Test files
+*_test.go

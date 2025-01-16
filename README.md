@@ -6,12 +6,13 @@ Gogent is a distributed log analysis system that uses embedded NATS messaging an
 
 ```mermaid
 flowchart LR
-    T[test.sh] -->|JSON Messages| N[Embedded NATS Server]
+    T[test.sh] -->|agent.technical.support| N[Embedded NATS Server]
     subgraph Gogent Service
-        N -->|Subscribe| A[Agent Worker]
-        A -->|Format Message| L[LLM/Gemini API]
+        S[AGENT_STREAM] -->|AGENT_CONSUMER| A[Agent Sig]
+        A -->|Format Message| L[gemini-1.5-flash-8b]
         L -->|Analysis| A
     end
+    N -->|JetStream| S
     A -->|Response| N
 ```
 
@@ -24,10 +25,11 @@ flowchart LR
 
 ## Message Flow
 
-1. Log messages are published to `AGENT.TECHNICAL.SUPPORT` subject
+1. Log messages are published to `agent.technical.support` subject
 2. Agent subscribes to messages and formats them for LLM processing
-3. Gemini API analyzes the log content
+3. Gemini API analyzes the log content using gemini-1.5-flash-8b model
 4. Analysis results are sent back through NATS if reply subject exists
+5. Messages are persisted in `AGENT_STREAM` with `AGENT_CONSUMER` subscription
 
 ## Technical Details
 
@@ -43,8 +45,22 @@ type Config struct {
 }
 ```
 
-### Message Structure
+### Default Configuration
+```go
+// NATS Configuration
+StreamName    = "AGENT_STREAM"
+ConsumerName  = "AGENT_CONSUMER"
+SubjectName   = "agent.technical.support"
+DefaultNATSPort = 4222
+DefaultNATSURL  = "nats://localhost:4222"
 
+// Agent Configuration
+DefaultAgentName = "Agent Sig"
+DefaultAgentModel = "gemini-1.5-flash-8b"
+DefaultAgentInstructions = "You are a technical analyst that executes natural language reporting from technical information and raw SIGINT data. Analyze system logs and provide concise, actionable insights."
+```
+
+### Message Structure
 ```go
 type LogMessage struct {
     Timestamp string
@@ -56,12 +72,66 @@ type LogMessage struct {
 }
 ```
 
+## Setup
+
+### Prerequisites
+
+- Go 1.23.4 or later
+- Gemini API key from Google AI Studio
+- Git
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/tobalo/gogent.git
+cd gogent
+```
+
+2. Install dependencies:
+```bash
+go mod download
+```
+
+3. Create environment file:
+```bash
+cp .env.example .env
+```
+
+4. Configure your .env file:
+```sh
+GEMINI_API_KEY=your_api_key_here    # Required: API key from Google AI Studio
+```
+
+### Running
+
+1. Start the agent:
+```bash
+go run cmd/microlith/main.go
+```
+
+2. The agent will initialize with:
+   - Embedded NATS server on port 4222
+   - JetStream enabled for message persistence
+   - Agent subscribed to agent.technical.support
+   - 30-second timeout for LLM processing
+
+3. Monitor the startup logs:
+```sh
+[AGENT SIG] 2025/01/16 10:08:14.123 UTC Starting embedded NATS server...
+[AGENT SIG] 2025/01/16 10:08:14.234 UTC NATS server started successfully
+[AGENT SIG] 2025/01/16 10:08:15.345 UTC Agent service started successfully
+[AGENT SIG] 2025/01/16 10:08:15.456 UTC Ready to process messages
+```
+
 ## Sample Usage
 
-Test messages can be published using:
+### Publishing Messages
+
+Messages can be published using the NATS CLI:
 
 ```bash
-nats pub AGENT.TECHNICAL.SUPPORT '{
+nats pub agent.technical.support '{
     "timestamp": "2025-01-15T02:14:23.123Z",
     "hostname": "web-server-01",
     "severity": "ERROR",

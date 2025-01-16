@@ -7,7 +7,7 @@ const (
 	// ConsumerName is the name of the NATS consumer
 	ConsumerName = "AGENT_CONSUMER"
 	// SubjectName is the NATS subject for agent technical support messages
-	SubjectName = "AGENT.TECHNICAL.SUPPORT"
+	SubjectName = "agent.technical.support"
 )
 
 // NATS Configuration Constants
