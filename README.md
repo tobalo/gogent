@@ -20,8 +20,8 @@ flowchart LR
 
         end
         Z -->|Subscribe| A[Agent Sig]
-        E[(Error Log DB)]
-        A --> |Structured Log| E
+        E[(SQLite DB)]
+        A --> |Store Log & Analysis| E
     end
     subgraph Inference API
         A -->|Request| L[LLM/Gemini API]
@@ -35,6 +35,7 @@ flowchart LR
 - **Agent Service**: Processes messages using LLM
 - **Gemini Integration**: Provides AI-powered log analysis
 - **JetStream**: Persistent message storage
+- **SQLite Database**: Stores structured logs and AI analysis for historical querying
 
 ## Message Flow
 
@@ -43,6 +44,7 @@ flowchart LR
 3. Gemini API analyzes the log content using gemini-1.5-flash-8b model
 4. Analysis results are sent back through NATS if reply subject exists
 5. Messages are persisted in `AGENT_STREAM` with `AGENT_CONSUMER` subscription
+6. Both original logs and AI analysis are stored in SQLite database
 
 ## Technical Details
 
@@ -55,6 +57,7 @@ type Config struct {
     AgentName    string
     Instructions string
     Model        string
+    DBPath       string    // Path to SQLite database
 }
 ```
 
@@ -85,6 +88,21 @@ type LogMessage struct {
 }
 ```
 
+### Database Schema
+```sql
+CREATE TABLE agent_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    hostname TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    service TEXT NOT NULL,
+    message TEXT NOT NULL,
+    context TEXT,           -- JSON string of context map
+    analysis TEXT,          -- AI-generated analysis
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
 ## Setup
 
 ### Prerequisites
@@ -92,6 +110,7 @@ type LogMessage struct {
 - Go 1.23.4 or later
 - Gemini API key from Google AI Studio
 - Git
+- SQLite3
 
 ### Installation
 
@@ -128,6 +147,7 @@ go run cmd/microlith/main.go
    - JetStream enabled for message persistence
    - Agent subscribed to agent.technical.support
    - 30-second timeout for LLM processing
+   - SQLite database in data/agent.db
 
 3. Monitor the startup logs:
 ```sh
@@ -157,12 +177,22 @@ nats pub agent.technical.support '{
 }'
 ```
 
+### Querying Logs
+
+You can query the stored logs using SQLite:
+
+```bash
+sqlite3 data/agent.db "SELECT timestamp, severity, message, analysis FROM agent_logs WHERE severity = 'ERROR' ORDER BY timestamp DESC LIMIT 5;"
+```
+
 ## Features
 
 - Real-time log processing
 - AI-powered log analysis
 - Distributed message handling
 - Persistent message storage via JetStream
+- Structured log storage in SQLite database
+- Historical log querying capabilities
 - Configurable agent behavior
 - Automatic message formatting for LLM processing
 - Response handling with original context

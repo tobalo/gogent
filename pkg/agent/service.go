@@ -2,14 +2,17 @@ package agent
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
+	"path/filepath"
 	"time"
 
 	"github.com/nats-io/nats.go"
 	swarmgo "github.com/prathyushnallamothu/swarmgo"
 	llm "github.com/prathyushnallamothu/swarmgo/llm"
+	"github.com/tobalo/gogent/pkg/db"
 	"github.com/tobalo/gogent/pkg/shared"
 )
 
@@ -20,6 +23,7 @@ type Config struct {
 	AgentName    string
 	Instructions string
 	Model        string
+	DBPath       string // Path to SQLite database
 }
 
 // Service manages the agent and its NATS connection
@@ -29,6 +33,7 @@ type Service struct {
 	swarm  *swarmgo.Swarm
 	nc     *nats.Conn
 	js     nats.JetStreamContext
+	dbConn *sql.DB
 }
 
 // LogMessage represents the structure of log messages received
@@ -45,6 +50,17 @@ type LogMessage struct {
 func NewService(cfg Config) (*Service, error) {
 	if cfg.GeminiAPIKey == "" {
 		return nil, fmt.Errorf("gemini API key is required")
+	}
+
+	// Set default database path if not provided
+	if cfg.DBPath == "" {
+		cfg.DBPath = filepath.Join("data", "agent.db")
+	}
+
+	// Initialize database
+	dbConn, err := db.InitDB(cfg.DBPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
 
 	// Create swarm and agent instances
@@ -74,6 +90,7 @@ func NewService(cfg Config) (*Service, error) {
 		swarm:  swarm,
 		nc:     nc,
 		js:     js,
+		dbConn: dbConn,
 	}, nil
 }
 
@@ -138,6 +155,28 @@ Additional Context: %v`,
 	}
 
 	analysis := response.Messages[len(response.Messages)-1].Content
+
+	// Store log in database
+	contextJSON, err := json.Marshal(logMsg.Context)
+	if err != nil {
+		log.Printf("Error marshaling context: %v", err)
+		return
+	}
+
+	logEntry := db.LogEntry{
+		Timestamp: logMsg.Timestamp,
+		Hostname:  logMsg.Hostname,
+		Severity:  logMsg.Severity,
+		Service:   logMsg.Service,
+		Message:   logMsg.Message,
+		Context:   string(contextJSON),
+		Analysis:  analysis,
+	}
+
+	if err := db.InsertLogEntry(logEntry); err != nil {
+		log.Printf("Error storing log in database: %v", err)
+	}
+
 	log.Printf("Analysis complete for %s: %s", logMsg.Service, analysis[:100]+"...")
 
 	// Prepare response
@@ -163,6 +202,9 @@ Additional Context: %v`,
 func (s *Service) Stop() error {
 	if s.nc != nil {
 		s.nc.Close()
+	}
+	if s.dbConn != nil {
+		s.dbConn.Close()
 	}
 	return nil
 }

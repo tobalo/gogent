@@ -29,6 +29,7 @@ require (
 	github.com/invopop/jsonschema v0.12.0 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/mattn/go-sqlite3 v1.14.24 // indirect
 	github.com/minio/highwayhash v1.0.3 // indirect
 	github.com/nats-io/jwt/v2 v2.7.3 // indirect
 	github.com/nats-io/nats-server/v2 v2.10.24 // indirect
