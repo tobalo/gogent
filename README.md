@@ -19,18 +19,19 @@ subgraph Manufucturing Site Network
     Y[IoT Erro Log Producer 1] -->|Publish| Z
     subgraph Gogent
         subgraph embedded NATS
-            Z[[agent.technical.support]]
-
+            Z@{ shape: das, label: "agent.technical.support" }
+            U@{ shape: lin-cyl, label: "JetStream Persistence" }
         end
-        Z -->|Subscribe| A[Agent Sig]
+        Z -->|Subscribe| A{Agent Sig}
         E[(Error Log DB)]
-        A --> |Structured Log| E
+        A --> |Retain w/ policy conditions| E
     end
     subgraph Inference API
         A -->|Request| L[LLM && VLM]
         L -->|Response| A
     end
 end
+  
 ```
 
 ## Core Components
