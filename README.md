@@ -16,7 +16,7 @@ flowchart
 subgraph Manufucturing Site Network
     S[IoT Error Log Producer 1] -->|Publish| Z
     T[IoT Error Log Producer 2] -->|Publish| Z
-    Y[IoT Erro Log Producer N] -->|Publish| Z
+    Y[IoT Error Log Producer N] -->|Publish| Z
     subgraph Gogent
         subgraph embedded NATS
             Z@{ shape: das, label: "agent.technical.support" }
