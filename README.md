@@ -15,8 +15,8 @@ The motivation to do this was:
 flowchart
 subgraph Manufucturing Site Network
     S[IoT Error Log Producer 1] -->|Publish| Z
-    T[IoT Error Log Producer 1] -->|Publish| Z
-    Y[IoT Erro Log Producer 1] -->|Publish| Z
+    T[IoT Error Log Producer 2] -->|Publish| Z
+    Y[IoT Erro Log Producer N] -->|Publish| Z
     subgraph Gogent
         subgraph embedded NATS
             Z@{ shape: das, label: "agent.technical.support" }
@@ -31,7 +31,6 @@ subgraph Manufucturing Site Network
         L -->|Response| A
     end
 end
-  
 ```
 
 ## Core Components
