@@ -1,19 +1,30 @@
 # Gogent - Agentic Worker AI in Golang
 
-Gogent is a distributed log analysis system that uses embedded NATS messaging and LLM-powered agents to process and analyze system logs in real-time.
+Gogent is a distributed log analysis system that uses embedded NATS messaging and LLM-powered agents to process and analyze system logs in real-time and at the edge.
+
+The motivation to do this was:
+1. Explore AI agents in purely Go and not use Python
+2. How this could be lightweight and usable in the Reindustrialization of America.
+3. Focus on the use-case of having error log data collection to simplify analysis, collection, and aggregation of all system errors on a manufacturing site into a DB which can then be used for analyzing patterns of errors, metadata analysis to help Operators diagnose and resolve production issues faster, ultimately increasing reindustrializtion and manufacturing productivity.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    T[test.sh] -->|agent.technical.support| N[Embedded NATS Server]
-    subgraph Gogent Service
-        S[AGENT_STREAM] -->|AGENT_CONSUMER| A[Agent Sig]
-        A -->|Format Message| L[gemini-1.5-flash-8b]
-        L -->|Analysis| A
+    T[Log Producer] -->|Publish| Z[[Raw Error Log]]
+    subgraph Gogent
+        subgraph embedded NATS
+            Z[[agent.technical.support]]
+
+        end
+        Z -->|Subscribe| A[Agent Sig]
+        E[(Error Log DB)]
+        A --> |Structured Log| E
     end
-    N -->|JetStream| S
-    A -->|Response| N
+    subgraph Inference API
+        A -->|Request| L[LLM/Gemini API]
+        L -->|Response| A
+    end
 ```
 
 ## Core Components
