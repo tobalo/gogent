@@ -7,7 +7,12 @@ The motivation to do this was:
 2. How this could be lightweight and usable in the Reindustrialization of America.
 3. Focus on the use-case of having error log data collection to simplify analysis, collection, and aggregation of all system errors on a manufacturing site into a DB which can then be used for analyzing patterns of errors, metadata analysis to help Operators diagnose and resolve production issues faster, ultimately increasing reindustrializtion and manufacturing productivity.
 
-**TODO: embed tools for agent common in IT and manufacturing support, such as: servicenow, jira, splunk, palantir foundry, etc.**
+***TODO: embed tools for agent common in IT and manufacturing support, such as: servicenow, jira, splunk, palantir foundry, etc.***
+
+### Limitations
+- Nil pointer if agent is overloaded with messages > 20
+- Ollama on non-GPU accelerated machines and ample VRAM unable to handle the concurrent requests from Gogent
+
 
 ## Architecture
 
