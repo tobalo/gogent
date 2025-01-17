@@ -165,7 +165,7 @@ cp .env.example .env
 ```sh
 # LLM Provider Configuration
 PROVIDER=OLLAMA    # See .env.example for all provider options
-MODEL=phi-3.5      # Model name for selected provider
+MODEL=phi3.5      # Model name for selected provider
 API_KEY=your_key  # Required for non-Ollama providers
 
 # Other configurations...
