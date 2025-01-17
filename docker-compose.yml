@@ -25,8 +25,8 @@ services:
       ollama:
         condition: service_healthy
     environment:
-      - PROVIDER=ollama
-      - MODEL=phi-3.5
+      - PROVIDER=OLLAMA
+      - MODEL=phi3.5
       - NATS_URL=nats://localhost:4222
       # Override these in .env if needed
       - API_KEY=${API_KEY:-}

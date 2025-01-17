@@ -49,7 +49,7 @@ EXPOSE 4222
 
 # Environment variables for configuration
 ENV API_KEY=""
-ENV PROVIDER="ollama"
+ENV PROVIDER="OLLAMA"
 ENV MODEL="phi-3.5"
 
 # Health check
