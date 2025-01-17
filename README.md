@@ -31,19 +31,9 @@ subgraph Manufacturing Site Network
         E[(Error Log DB)]
         A --> |Retain w/ policy conditions| E
     end
-    subgraph LLM Providers
-        A -->|Request| L[LLM API]
+    subgraph Inference Providers
+        A -->|Request| L[LLM or VLM API]
         L -->|Response| A
-        subgraph "Available Providers"
-            L1[Ollama (default)]
-            L2[OpenAI]
-            L3[Azure OpenAI]
-            L4[Azure AD]
-            L5[Cloudflare Azure]
-            L6[Gemini]
-            L7[Claude]
-            L8[DeepSeek]
-        end
     end
 end
 ```
