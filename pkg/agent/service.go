@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -18,11 +19,12 @@ import (
 
 // Config holds the configuration for the agent service
 type Config struct {
-	GeminiAPIKey string
+	APIKey       string // Optional: required for non-Ollama providers
 	NATSUrl      string
 	AgentName    string
 	Instructions string
 	Model        string
+	Provider     string // LLM provider (ollama, openai, azure, etc.)
 	DBPath       string // Path to SQLite database
 }
 
@@ -48,13 +50,23 @@ type LogMessage struct {
 
 // NewService creates a new agent service
 func NewService(cfg Config) (*Service, error) {
-	if cfg.GeminiAPIKey == "" {
-		return nil, fmt.Errorf("gemini API key is required")
+	// Set defaults if not provided
+	if cfg.Provider == "" {
+		cfg.Provider = shared.Provider
 	}
-
-	// Set default database path if not provided
+	if cfg.Model == "" {
+		cfg.Model = shared.AgentModel
+	}
 	if cfg.DBPath == "" {
 		cfg.DBPath = filepath.Join("data", "agent.db")
+	}
+
+	// Convert provider to uppercase for LLMProvider matching
+	provider := strings.ToUpper(cfg.Provider)
+
+	// Validate provider-specific requirements
+	if provider != shared.ProviderOllama && cfg.APIKey == "" {
+		return nil, fmt.Errorf("API key is required for %s provider", provider)
 	}
 
 	// Initialize database
@@ -63,8 +75,30 @@ func NewService(cfg Config) (*Service, error) {
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
 
-	// Create swarm and agent instances
-	swarm := swarmgo.NewSwarm(cfg.GeminiAPIKey, llm.Gemini)
+	// Create swarm instance with appropriate provider
+	var llmProvider llm.LLMProvider
+	switch provider {
+	case shared.ProviderOpenAI:
+		llmProvider = llm.LLMProvider(shared.ProviderOpenAI)
+	case shared.ProviderAzure:
+		llmProvider = llm.LLMProvider(shared.ProviderAzure)
+	case shared.ProviderAzureAD:
+		llmProvider = llm.LLMProvider(shared.ProviderAzureAD)
+	case shared.ProviderCloudflareAzure:
+		llmProvider = llm.LLMProvider(shared.ProviderCloudflareAzure)
+	case shared.ProviderGemini:
+		llmProvider = llm.LLMProvider(shared.ProviderGemini)
+	case shared.ProviderClaude:
+		llmProvider = llm.LLMProvider(shared.ProviderClaude)
+	case shared.ProviderOllama:
+		llmProvider = llm.LLMProvider(shared.ProviderOllama)
+	case shared.ProviderDeepSeek:
+		llmProvider = llm.LLMProvider(shared.ProviderDeepSeek)
+	default:
+		return nil, fmt.Errorf("unsupported provider: %s", provider)
+	}
+
+	swarm := swarmgo.NewSwarm(cfg.APIKey, llmProvider)
 	agent := &swarmgo.Agent{
 		Name:         cfg.AgentName,
 		Instructions: cfg.Instructions,
@@ -110,7 +144,8 @@ func (s *Service) Start(ctx context.Context) error {
 		sub.Unsubscribe()
 	}()
 
-	log.Printf("Agent service started, listening on %s", shared.SubjectName)
+	log.Printf("Agent service started with %s provider and %s model, listening on %s",
+		strings.ToUpper(s.config.Provider), s.config.Model, shared.SubjectName)
 	return nil
 }
 

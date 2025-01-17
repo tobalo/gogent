@@ -47,8 +47,10 @@ USER appuser
 # Expose NATS port
 EXPOSE 4222
 
-# Environment variable for Gemini API key
-ENV GEMINI_API_KEY=""
+# Environment variables for configuration
+ENV API_KEY=""
+ENV PROVIDER="ollama"
+ENV MODEL="phi-3.5"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

@@ -7,13 +7,11 @@ The motivation to do this was:
 2. How this could be lightweight and usable in the Reindustrialization of America.
 3. Focus on the use-case of having error log data collection to simplify analysis, collection, and aggregation of all system errors on a manufacturing site into a DB which can then be used for analyzing patterns of errors, metadata analysis to help Operators diagnose and resolve production issues faster, ultimately increasing reindustrializtion and manufacturing productivity.
 
-***TODO: Use ollama and phi4 with software defined networking instead of Gemini for full edgeAI and no internet requirements***
-
 ## Architecture
 
 ```mermaid
 flowchart
-subgraph Manufucturing Site Network
+subgraph Manufacturing Site Network
     S[IoT Error Log Producer 1] -->|Publish| Z
     T[IoT Error Log Producer 2] -->|Publish| Z
     Y[IoT Error Log Producer N] -->|Publish| Z
@@ -26,9 +24,19 @@ subgraph Manufucturing Site Network
         E[(Error Log DB)]
         A --> |Retain w/ policy conditions| E
     end
-    subgraph Inference API
-        A -->|Request| L[LLM && VLM]
+    subgraph LLM Providers
+        A -->|Request| L[LLM API]
         L -->|Response| A
+        subgraph "Available Providers"
+            L1[Ollama (default)]
+            L2[OpenAI]
+            L3[Azure OpenAI]
+            L4[Azure AD]
+            L5[Cloudflare Azure]
+            L6[Gemini]
+            L7[Claude]
+            L8[DeepSeek]
+        end
     end
 end
 ```
@@ -37,7 +45,15 @@ end
 
 - **Embedded NATS Server**: Handles message queuing and distribution
 - **Agent Service**: Processes messages using LLM
-- **Gemini Integration**: Provides AI-powered log analysis
+- **Multi-Provider LLM Support**:
+  - Ollama (default, with phi-3.5)
+  - OpenAI
+  - Azure OpenAI
+  - Azure AD
+  - Cloudflare Azure
+  - Gemini
+  - Claude (Anthropic)
+  - DeepSeek
 - **JetStream**: Persistent message storage
 - **SQLite Database**: Stores structured logs and AI analysis for historical querying
 
@@ -45,7 +61,7 @@ end
 
 1. Log messages are published to `agent.technical.support` subject
 2. Agent subscribes to messages and formats them for LLM processing
-3. Gemini API analyzes the log content using gemini-1.5-flash-8b model
+3. Selected LLM provider analyzes the log content
 4. Analysis results are sent back through NATS if reply subject exists
 5. Messages are persisted in `AGENT_STREAM` with `AGENT_CONSUMER` subscription
 6. Both original logs and AI analysis are stored in SQLite database
@@ -56,11 +72,12 @@ end
 
 ```go
 type Config struct {
-    GeminiAPIKey string
+    APIKey       string    // Required for non-Ollama providers
     NATSUrl      string
     AgentName    string
     Instructions string
     Model        string
+    Provider     string    // LLM provider selection
     DBPath       string    // Path to SQLite database
 }
 ```
@@ -71,13 +88,13 @@ type Config struct {
 StreamName    = "AGENT_STREAM"
 ConsumerName  = "AGENT_CONSUMER"
 SubjectName   = "agent.technical.support"
-DefaultNATSPort = 4222
-DefaultNATSURL  = "nats://localhost:4222"
+NATSPort      = 4222
+NATSURL       = "nats://localhost:4222"
 
 // Agent Configuration
-DefaultAgentName = "Agent Sig"
-DefaultAgentModel = "gemini-1.5-flash-8b"
-DefaultAgentInstructions = "You are a technical analyst that executes natural language reporting from technical information and raw SIGINT data. Analyze system logs and provide concise, actionable insights."
+AgentName = "Agent Sig"
+Provider  = "OLLAMA"     // Default provider
+Model     = "phi-3.5"    // Default model
 ```
 
 ### Message Structure
@@ -112,9 +129,17 @@ CREATE TABLE agent_logs (
 ### Prerequisites
 
 - Go 1.23.4 or later
-- Gemini API key from Google AI Studio
 - Git
 - SQLite3
+- Docker and Docker Compose (for containerized setup)
+- For non-Ollama providers, one of:
+  - OpenAI API key
+  - Azure OpenAI credentials
+  - Azure AD credentials
+  - Cloudflare Azure setup
+  - Gemini API key
+  - Claude API key
+  - DeepSeek API key
 
 ### Installation
 
@@ -136,10 +161,43 @@ cp .env.example .env
 
 4. Configure your .env file:
 ```sh
-GEMINI_API_KEY=your_api_key_here    # Required: API key from Google AI Studio
+# LLM Provider Configuration
+PROVIDER=OLLAMA    # See .env.example for all provider options
+MODEL=phi-3.5      # Model name for selected provider
+API_KEY=your_key  # Required for non-Ollama providers
+
+# Other configurations...
 ```
 
-### Running
+### Running with Docker Compose
+
+The easiest way to run Gogent is using Docker Compose, which sets up both Gogent and Ollama in a software-defined network:
+
+1. Start the services:
+```bash
+docker-compose up -d
+```
+
+This will:
+- Start Ollama service (if using Ollama provider)
+- Pull the phi-3.5 model automatically (for Ollama)
+- Start Gogent with the configured provider
+- Set up a bridge network between services
+- Configure persistent storage for both services
+
+2. Monitor the logs:
+```bash
+docker-compose logs -f
+```
+
+3. Stop the services:
+```bash
+docker-compose down
+```
+
+### Running Locally
+
+If you prefer to run without Docker:
 
 1. Start the agent:
 ```bash
@@ -152,14 +210,6 @@ go run cmd/microlith/main.go
    - Agent subscribed to agent.technical.support
    - 30-second timeout for LLM processing
    - SQLite database in data/agent.db
-
-3. Monitor the startup logs:
-```sh
-[AGENT SIG] 2025/01/16 10:08:14.123 UTC Starting embedded NATS server...
-[AGENT SIG] 2025/01/16 10:08:14.234 UTC NATS server started successfully
-[AGENT SIG] 2025/01/16 10:08:15.345 UTC Agent service started successfully
-[AGENT SIG] 2025/01/16 10:08:15.456 UTC Ready to process messages
-```
 
 ## Sample Usage
 
@@ -192,7 +242,9 @@ sqlite3 data/agent.db "SELECT timestamp, severity, message, analysis FROM agent_
 ## Features
 
 - Real-time log processing
-- AI-powered log analysis
+- Comprehensive multi-provider LLM support
+- Edge AI capability with Ollama
+- Cloud provider support (Azure, OpenAI, etc.)
 - Distributed message handling
 - Persistent message storage via JetStream
 - Structured log storage in SQLite database
@@ -200,3 +252,4 @@ sqlite3 data/agent.db "SELECT timestamp, severity, message, analysis FROM agent_
 - Configurable agent behavior
 - Automatic message formatting for LLM processing
 - Response handling with original context
+- Docker Compose support for easy deployment

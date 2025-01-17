@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ai_network
+
+  gogent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gogent
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - PROVIDER=ollama
+      - MODEL=phi-3.5
+      - NATS_URL=nats://localhost:4222
+      # Override these in .env if needed
+      - API_KEY=${API_KEY:-}
+      - AGENT_NAME=${AGENT_NAME:-Agent Sig}
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "4222:4222"
+    networks:
+      - ai_network
+    healthcheck:
+      test: ["CMD", "nc", "-zv", "localhost", "4222"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: >
+      sh -c "
+        # Wait for Ollama to be ready and pull the model
+        until curl -s http://ollama:11434/api/health > /dev/null; do
+          echo 'Waiting for Ollama to be ready...'
+          sleep 2
+        done &&
+        echo 'Pulling phi-3.5 model...' &&
+        curl -X POST http://ollama:11434/api/pull -d '{\"name\":\"phi-3.5\"}' &&
+        echo 'Starting gogent...' &&
+        ./gogent
+      "
+
+networks:
+  ai_network:
+    driver: bridge
+
+volumes:
+  ollama_data:
+    driver: local
