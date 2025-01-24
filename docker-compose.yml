@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   ollama:
     image: ollama/ollama:latest
@@ -7,14 +5,34 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"  # Only allow local connections
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD", "nc", "-z", "localhost", "11434"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '4'
+        reservations:
+          memory: 2G
+          cpus: '2'
+    environment:
+      - DEFAULT_MODEL=deepseek-r1:1.5b
+      - DEFAULT_PROVIDER=ollama
     networks:
-      - ai_network
+      ai_network:
+        aliases:
+          - ollama.local
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=1g
+    command: serve
 
   gogent:
     build:
@@ -26,31 +44,45 @@ services:
         condition: service_healthy
     environment:
       - PROVIDER=OLLAMA
-      - MODEL=phi3.5
-      - NATS_URL=nats://localhost:4222
+      - MODEL=phi-3.5
+      - NATS_URL=nats://gogent.local:4222
       # Override these in .env if needed
       - API_KEY=${API_KEY:-}
       - AGENT_NAME=${AGENT_NAME:-Agent Sig}
     volumes:
-      - ./data:/app/data
+      - ./data:/app/data:rw
     ports:
-      - "4222:4222"
+      - "127.0.0.1:4222:4222"  # Only allow local connections
     networks:
-      - ai_network
+      ai_network:
+        aliases:
+          - gogent.local
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m
     healthcheck:
       test: ["CMD", "nc", "-zv", "localhost", "4222"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: >
       sh -c "
-        # Wait for Ollama to be ready and pull the model
-        until curl -s http://ollama:11434/api/health > /dev/null; do
+        until nc -z ollama.local 11434; do
           echo 'Waiting for Ollama to be ready...'
           sleep 2
         done &&
         echo 'Pulling phi-3.5 model...' &&
-        curl -X POST http://ollama:11434/api/pull -d '{\"name\":\"phi-3.5\"}' &&
+        curl -X POST http://ollama.local:11434/api/pull -d '{\"name\":\"phi-3.5\"}' &&
         echo 'Starting gogent...' &&
         ./gogent
       "
@@ -58,7 +90,14 @@ services:
 networks:
   ai_network:
     driver: bridge
+    internal: true  # No outbound internet access except through explicit ports
+    name: ai_agent_network
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
 
 volumes:
   ollama_data:
     driver: local
+    name: ollama_agent_data

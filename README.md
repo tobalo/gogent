@@ -43,7 +43,7 @@ end
 - **Embedded NATS Server**: Handles message queuing and distribution
 - **Agent Service**: Processes messages using LLM
 - **Multi-Provider LLM Support**:
-  - Ollama (default, with phi-3.5)
+  - Ollama (default, with deepkseek-r1:1.5b)
   - OpenAI
   - Azure OpenAI
   - Azure AD
@@ -91,7 +91,7 @@ NATSURL       = "nats://localhost:4222"
 // Agent Configuration
 AgentName = "Agent Sig"
 Provider  = "OLLAMA"     // Default provider
-Model     = "phi-3.5"    // Default model
+Model     = "deepseek-r1:1.5b"    // Default model
 ```
 
 ### Message Structure
@@ -160,7 +160,7 @@ cp .env.example .env
 ```sh
 # LLM Provider Configuration
 PROVIDER=OLLAMA    # See .env.example for all provider options
-MODEL=phi3.5      # Model name for selected provider
+MODEL=deepseek-r1:1.5b     # Model name for selected provider
 API_KEY=your_key  # Required for non-Ollama providers
 
 # Other configurations...
@@ -177,7 +177,7 @@ docker-compose up -d
 
 This will:
 - Start Ollama service (if using Ollama provider)
-- Pull the phi-3.5 model automatically (for Ollama)
+- Pull the deepseek-r1:1.5b model automatically (for Ollama)
 - Start Gogent with the configured provider
 - Set up a bridge network between services
 - Configure persistent storage for both services
