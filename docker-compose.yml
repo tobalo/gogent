@@ -5,34 +5,33 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     ports:
-      - "127.0.0.1:11434:11434"  # Only allow local connections
-    healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "11434"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-          cpus: '4'
-        reservations:
-          memory: 2G
-          cpus: '2'
+      - "11434:11434"
     environment:
-      - DEFAULT_MODEL=deepseek-r1:1.5b
-      - DEFAULT_PROVIDER=ollama
+      - OLLAMA_MODEL=deepseek-r1:1.5b
+      - OLLAMA_DEFAULT_MODEL=deepseek-r1:1.5b
     networks:
       ai_network:
         aliases:
-          - ollama.local
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp:size=1g
+          - ollama
+    healthcheck:
+      test: ["CMD", "/bin/ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     command: serve
+
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: ollama-init
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    networks:
+      - ai_network
+    command: pull deepseek-r1:1.5b
 
   gogent:
     build:
@@ -40,64 +39,28 @@ services:
       dockerfile: Dockerfile
     container_name: gogent
     depends_on:
-      ollama:
-        condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
     environment:
       - PROVIDER=OLLAMA
-      - MODEL=phi-3.5
-      - NATS_URL=nats://gogent.local:4222
-      # Override these in .env if needed
+      - MODEL=deepseek-r1:1.5b
+      - NATS_URL=nats://localhost:4222
+      - OLLAMA_HOST=http://ollama:11434
       - API_KEY=${API_KEY:-}
       - AGENT_NAME=${AGENT_NAME:-Agent Sig}
     volumes:
       - ./data:/app/data:rw
     ports:
-      - "127.0.0.1:4222:4222"  # Only allow local connections
+      - "4222:4222"
     networks:
       ai_network:
         aliases:
-          - gogent.local
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: '2'
-        reservations:
-          memory: 512M
-          cpus: '0.5'
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp:size=256m
-    healthcheck:
-      test: ["CMD", "nc", "-zv", "localhost", "4222"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    command: >
-      sh -c "
-        until nc -z ollama.local 11434; do
-          echo 'Waiting for Ollama to be ready...'
-          sleep 2
-        done &&
-        echo 'Pulling phi-3.5 model...' &&
-        curl -X POST http://ollama.local:11434/api/pull -d '{\"name\":\"phi-3.5\"}' &&
-        echo 'Starting gogent...' &&
-        ./gogent
-      "
+          - gogent
 
 networks:
   ai_network:
-    driver: bridge
-    internal: true  # No outbound internet access except through explicit ports
     name: ai_agent_network
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.28.0.0/16
+    driver: bridge
 
 volumes:
   ollama_data:
-    driver: local
-    name: ollama_agent_data

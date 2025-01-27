@@ -1,11 +1,22 @@
 # Build stage
-FROM golang:1.23.4-alpine3.19 AS builder
+FROM golang:1.23.4-bullseye AS builder
 
 # Set working directory
 WORKDIR /app
 
 # Install build dependencies
-RUN apk add --no-cache git
+RUN apt-get update && apt-get install -y \
+    git \
+    gcc \
+    g++ \
+    sqlite3 \
+    libsqlite3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set environment variables
+ENV CGO_ENABLED=1
+ENV GOOS=linux
+ENV GOARCH=arm64
 
 # Copy go mod files first for better layer caching
 COPY go.mod go.sum ./
@@ -16,18 +27,22 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/gogent ./cmd/microlith
+# Build the binary with explicit architecture flags
+RUN CGO_CFLAGS="-O2" CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build -o /app/gogent ./cmd/microlith
 
 # Final stage
-FROM alpine:3.19
+FROM debian:bullseye-slim
 
-# Install CA certificates for HTTPS connections
-RUN apk add --no-cache ca-certificates && \
-    update-ca-certificates
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    sqlite3 \
+    curl \
+    netcat \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
-RUN adduser -D -g '' appuser
+RUN useradd -r -s /bin/false appuser
 
 # Set working directory
 WORKDIR /app
@@ -50,7 +65,7 @@ EXPOSE 4222
 # Environment variables for configuration
 ENV API_KEY=""
 ENV PROVIDER="OLLAMA"
-ENV MODEL="phi-3.5"
+ENV MODEL="deepseek-r1:1.5b"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
